@@ -13,6 +13,7 @@ import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
@@ -50,6 +51,8 @@ class GatewayApplicationTests {
 
 	@Autowired
 	private WebClient.Builder webClientBuilder;
+	@Autowired
+	private WebTestClient wtc;
 	
 	@Value("${wiremock.server.port}")
 	private String wiremockPort;
@@ -169,5 +172,23 @@ class GatewayApplicationTests {
 			.retrieve()
 			.onStatus(code -> code.is5xxServerError(), r -> Mono.empty())
 			.toBodilessEntity().block();
+	}
+
+	@Test
+	@DisplayName("Eureka routes defined")
+	void eureka(){
+		stubFor(
+			get(urlPathMatching("/eureka/.*")).atPriority(5)
+				.willReturn(ok("resources")));
+		stubFor(
+			get(urlPathEqualTo("/eureka/apps")).atPriority(1)
+				.willReturn(ok("api")));
+		stubFor(
+			get(urlPathEqualTo("/"))
+				.willReturn(ok("web")));
+
+		wtc.get().uri("/eureka/api/apps").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("api");
+		wtc.get().uri("/eureka/web").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("web");
+		wtc.get().uri("/eureka/other").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("resources");
 	}
 }

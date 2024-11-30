@@ -30,18 +30,23 @@ public class DiscoveryRouteLocatorConfig {
 
 		return () -> {
 			Builder routeBuilder = builder.routes();
-			List<String> services = discoveryClient.getServices();
-            log.info(() -> "Building routes for the following services: " + services.toString());
-			return discoveryRouteLocator(services, routeBuilder, discoveryClient).getRoutes();
+			return addDiscoveryRoutes(routeBuilder, discoveryClient)
+			// TODO: check if eureka is self registered, if not use garden.eureka.host etc...
+				.route("eureka-api", p -> p.path("/eureka/api/{remaining}").filters(f -> f.setPath("/eureka/{remaining}")).uri(baseUri+"eureka"))
+				.route("eureka-web", p -> p.path("/eureka/web").filters(f -> f.setPath("/")).uri(baseUri+"eureka"))
+				.route("eureka-web-resources", p -> p.path("/eureka/**").uri(baseUri+"eureka"))
+				.build().getRoutes();
 		};		
 	}
 
-	private RouteLocator discoveryRouteLocator(List<String> services, Builder routeBuilder, DiscoveryClient discoveryClient) {
+	private Builder addDiscoveryRoutes(Builder routeBuilder, DiscoveryClient discoveryClient) {
+		List<String> services = discoveryClient.getServices();
+		log.info(() -> "Building routes for the following services: " + services.toString());
 		services.forEach(service -> {
 			int n = discoveryClient.getInstances(service).size();
 			addServiceRoute(routeBuilder, service, n-1);
 		});
-		return routeBuilder.build();
+		return routeBuilder;
 	}
 
 	// TO TEST:
