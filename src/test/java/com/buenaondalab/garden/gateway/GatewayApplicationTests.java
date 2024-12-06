@@ -44,7 +44,7 @@ class GatewayApplicationTests {
         @PostConstruct
         public void initMock(){
 			ServiceInstance si = mock(ServiceInstance.class);
-			when(discoveryClient.getServices()).thenReturn(List.of("garden", "config"));
+			when(discoveryClient.getServices()).thenReturn(List.of("garden", "config", "eureka-server", "auth-server"));
 			when(discoveryClient.getInstances(anyString())).thenReturn(List.of(si,si)); //! DO NOT CHANGE NUMofINSTANCES !!
         }
     }
@@ -190,5 +190,15 @@ class GatewayApplicationTests {
 		wtc.get().uri("/eureka/api/apps").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("api");
 		wtc.get().uri("/eureka/web").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("web");
 		wtc.get().uri("/eureka/other").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("resources");
+	}
+
+	@Test
+	@DisplayName("Auth server routes defined")
+	void authServer(){
+		stubFor(
+			get(urlPathMatching("/oauth/.*"))
+				.willReturn(ok("auth server")));
+
+		wtc.get().uri("/oauth/secureme").exchange().expectStatus().is2xxSuccessful().expectBody(String.class).isEqualTo("auth server");
 	}
 }
