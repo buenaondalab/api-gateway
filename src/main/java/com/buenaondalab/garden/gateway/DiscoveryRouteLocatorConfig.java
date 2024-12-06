@@ -1,8 +1,8 @@
 package com.buenaondalab.garden.gateway;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
@@ -47,11 +47,14 @@ public class DiscoveryRouteLocatorConfig {
 	}
 
 	private Builder addDiscoveryRoutes(Builder routeBuilder, DiscoveryClient discoveryClient) {
-		List<String> services = discoveryClient.getServices();
-		log.info(() -> "Building routes for the following services: " + services.toString());
-		services.forEach(service -> {
+		List<String> routableServices =
+			discoveryClient.getServices().stream().filter(s -> !s.equalsIgnoreCase("eureka-server"))
+												  .filter(s -> !s.equalsIgnoreCase("auth-server"))
+												  .collect(Collectors.toList());
+		log.info(() -> "Building routes for the following services: " + routableServices.toString());
+		routableServices.forEach(service -> {
 			int n = discoveryClient.getInstances(service).size();
-			addServiceRoute(routeBuilder, service, n-1);
+			addServiceRoute(routeBuilder, service, Math.max(1, n-1));
 		});
 		return routeBuilder;
 	}
@@ -69,6 +72,7 @@ public class DiscoveryRouteLocatorConfig {
 				 .filters(f -> f
 					// .localResponseCache(Duration.ofMinutes(10), null)
 					.rewritePath("/"+service+"/?(?<remaining>.*)", "/${remaining}")
+					.tokenRelay()
 					.retry(config -> config.setMethods(HttpMethod.GET).setSeries(SERVER_ERROR).setRetries(retries))
 					.circuitBreaker(config -> config.setName(service).setFallbackUri("forward:/fallback/"+service))
 				 )
