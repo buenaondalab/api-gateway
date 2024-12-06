@@ -22,19 +22,26 @@ public class DiscoveryRouteLocatorConfig {
 
     @Value("${garden.services.base-uri}")
     String baseUri;
+	@Value("${garden.eureka.host}")
+	String eurekaHost;
+	@Value("${garden.eureka.port}")
+	String eurekaPort;
 
     Logger log = Logger.getLogger(this.getClass().getName());
 
     @Bean
     RouteLocator myRoutes(RouteLocatorBuilder builder, DiscoveryClient discoveryClient) {
 
+		String eurekaBaseUri = "http://"+eurekaHost+":"+eurekaPort;
 		return () -> {
 			Builder routeBuilder = builder.routes();
 			return addDiscoveryRoutes(routeBuilder, discoveryClient)
 			// TODO: check if eureka is self registered, if not use garden.eureka.host etc...
-				.route("eureka-api", p -> p.path("/eureka/api/{remaining}").filters(f -> f.setPath("/eureka/{remaining}")).uri(baseUri+"eureka"))
-				.route("eureka-web", p -> p.path("/eureka/web").filters(f -> f.setPath("/")).uri(baseUri+"eureka"))
-				.route("eureka-web-resources", p -> p.path("/eureka/**").uri(baseUri+"eureka"))
+				.route("eureka-api", p -> p.path("/eureka/api/{remaining}").filters(f -> f.setPath("/eureka/{remaining}")).uri(eurekaBaseUri))
+				.route("eureka-web", p -> p.path("/eureka/web").filters(f -> f.setPath("/")).uri(eurekaBaseUri))
+				.route("eureka-web-resources", p -> p.path("/eureka/**").uri(eurekaBaseUri))
+				
+				.route("auth-server", p -> p.path("/oauth/**").uri(baseUri+"auth-server"))
 				.build().getRoutes();
 		};		
 	}
